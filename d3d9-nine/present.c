@@ -66,12 +66,21 @@ enum x11drv_escape_codes
     X11DRV_FLUSH_GL_DRAWABLE /* flush changes made to the gl drawable */
 };
 
-struct x11drv_escape_get_drawable
+// WINE < 9.19
+struct x11drv_escape_get_drawable_v1
 {
     enum x11drv_escape_codes code;         /* escape code (X11DRV_GET_DRAWABLE) */
     Drawable                 drawable;     /* X drawable */
     Drawable                 gl_drawable;  /* GL drawable */
     int                      pixel_format; /* internal GL pixel format */
+};
+
+// WINE >= 9.19
+struct x11drv_escape_get_drawable_v2
+{
+    enum x11drv_escape_codes code;         /* escape code (X11DRV_GET_DRAWABLE) */
+    Drawable                 drawable;     /* X drawable */
+    RECT                     dc_rect;      /* DC rectangle relative to drawable */
 };
 /* End section x11drv.h */
 
@@ -593,19 +602,32 @@ static void offset_by_virtual_screen(POINT *pt)
 
 static BOOL get_wine_drawable_from_dc(HDC hdc, Drawable *drawable)
 {
-    struct x11drv_escape_get_drawable extesc = { X11DRV_GET_DRAWABLE };
-
-    if (ExtEscape(hdc, X11DRV_ESCAPE, sizeof(extesc), (LPCSTR)&extesc,
-                  sizeof(extesc), (LPSTR)&extesc) <= 0)
     {
-        ERR("Unexpected error in X Drawable lookup (hdc=%p)\n", hdc);
-        return FALSE;
+        struct x11drv_escape_get_drawable_v2 extesc = { .code = X11DRV_GET_DRAWABLE };
+
+        if (ExtEscape(hdc, X11DRV_ESCAPE, sizeof(extesc), (LPCSTR)&extesc,
+                      sizeof(extesc), (LPSTR)&extesc) > 0)
+        {
+            if (drawable)
+                *drawable = extesc.drawable;
+            return TRUE;
+        }
     }
 
-    if (drawable)
-        *drawable = extesc.drawable;
+    {
+        struct x11drv_escape_get_drawable_v1 extesc = { .code = X11DRV_GET_DRAWABLE };
 
-    return TRUE;
+        if (ExtEscape(hdc, X11DRV_ESCAPE, sizeof(extesc), (LPCSTR)&extesc,
+                      sizeof(extesc), (LPSTR)&extesc) > 0)
+        {
+            if (drawable)
+                *drawable = extesc.drawable;
+            return TRUE;
+        }
+    }
+
+    ERR("Unexpected error in X Drawable lookup (hdc=%p)\n", hdc);
+    return FALSE;
 }
 
 static BOOL get_wine_drawable_from_wnd(HWND hwnd, Drawable *drawable, HDC *hdc)
