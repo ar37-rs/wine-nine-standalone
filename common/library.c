@@ -102,7 +102,7 @@ void *common_load_d3dadapter(char **path, char **err)
 
     return handle;
 #else
-    handle = open_d3dadapter("/usr/lib/x86_64-linux-gnu/d3d:"        // 64bit debian/ubuntu
+    handle = open_d3dadapter("/data/data/com.termux/files/home/xow64_drivers/lib/d3d:"        // 64bit debian/ubuntu
                              "/usr/lib/i386-linux-gnu/d3d:"          // 32bit debian/ubuntu
                              "/usr/lib64/d3d:"                       // 64bit gentoo/suse/fedora
                              "/usr/lib/d3d:"                         // 32bit suse/fedora, 64bit arch
